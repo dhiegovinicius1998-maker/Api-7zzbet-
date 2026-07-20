@@ -7,15 +7,12 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS LIBERADO PRA TUDO
 app.use(cors()); 
 app.use(express.json());
 
-// CONFIGURA O SUPABASE
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 const JWT_SECRET = process.env.JWT_SECRET || 'chave-super-secreta-mude-isso';
 
-// ROTA DE CADASTRO
 app.post('/cadastrar', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -27,9 +24,9 @@ app.post('/cadastrar', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const { data, error } = await supabase
-    .from('users')
-    .insert([{ email, password: hashedPassword }])
-    .select();
+  .from('users')
+  .insert([{ email, senha: hashedPassword }]) // <-- aqui usa "senha" igual sua tabela
+  .select();
 
     if (error) {
       return res.status(400).json({ error: error.message });
