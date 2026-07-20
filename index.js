@@ -5,62 +5,43 @@ const jwt = require('jsonwebtoken');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
-app.use(cors());
+const PORT = process.env.PORT || 3000;
+
+// MIDDLEWARES - LIBERA ACESSO
+app.use(cors({ origin: '*' })); // Libera qualquer site/app chamar a API
 app.use(express.json());
-app.use(cors({ origin: '*' }));
 
 // CONFIGURA O SUPABASE - ELE VAI PEGAR AS VARIAVEIS DO RAILWAY
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
-const JWT_SECRET = 'chave-super-secreta-mude-isso';
+const JWT_SECRET = process.env.JWT_SECRET || 'chave-super-secreta-mude-isso';
 
-// MIDDLEWARE PRA PROTEGER ROTAS
-function autenticar(req, res, next) {
-    const token = req.headers['authorization'];
-    if (!token) return res.status(401).json({ message: 'Token não fornecido' });
-
-    jwt.verify(token, JWT_SECRET, (err, usuario) => {
-        if (err) return res.status(403).json({ message: 'Token inválido' });
-        req.usuario = usuario;
-        next();
-    });
-}
-
-// 1. ROTA DE CADASTRO
+// ROTA DE CADASTRO
 app.post('/cadastrar', async (req, res) => {
-    const { nome, email, senha } = req.body;
-    const senhaHash = await bcrypt.hash(senha, 10);
+  try {
+    const { email, password, name } = req.body;
 
+    if (!email ||!password) {
+      return res.status(400).json({ error: 'Email e senha são obrigatórios' });
+    }
+
+    // Criptografa a senha
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Salva no Supabase
     const { data, error } = await supabase
-        .from('usuarios')
-        .insert([{ nome, email, senha: senhaHash }]);
+     .from('users')
+     .insert([{ email, password: hashedPassword, name }])
+     .select();
 
-    if (error) return res.status(400).json({ error: error.message });
-    res.status(201).json({ message: 'Usuário cadastrado com sucesso!' });
-});
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
 
-// 2. ROTA DE LOGIN
-app.post('/login', async (req, res) => {
-    const { email, senha } = req.body;
+    // Gera o token
+    const token = jwt.sign({ userId: data[0].id }, JWT_SECRET, { expiresIn: '7d' });
 
-    const { data: usuario, error } = await supabase
-        .from('usuarios')
-        .select('*')
-        .eq('email', email)
-        .single();
+    res.status(201).json({ message: 'Usuário criado com sucesso', token, user: data[0] });
 
-    if (error || !usuario) return res.status(401).json({ message: 'Usuário não encontrado' });
-
-    const senhaValida = await bcrypt.compare(senha, usuario.senha);
-    if (!senhaValida) return res.status(401).json({ message: 'Senha incorreta' });
-
-    const token = jwt.sign({ id: usuario.id }, JWT_SECRET, { expiresIn: '1h' });
-    res.json({ token });
-});
-
-// 3. ROTA TESTE PROTEGIDA
-app.get('/perfil', autenticar, (req, res) => {
-    res.json({ message: 'Você está logado!', usuario: req.usuario });
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
