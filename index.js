@@ -7,6 +7,7 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(cors({ origin: '*' }));
 
 // CONFIGURA O SUPABASE - ELE VAI PEGAR AS VARIAVEIS DO RAILWAY
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
