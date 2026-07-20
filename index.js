@@ -1,65 +1,65 @@
 const express = require('express');
 const cors = require('cors');
-const app = express();
-app.use(cors());
-app.use(express.json());
-const express = require('express');
-const bcrypt = require('bcryptjs'); // pra criptografar
-const jwt = require('jsonwebtoken'); // pra gerar token
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
+// CONFIGURA O SUPABASE - ELE VAI PEGAR AS VARIAVEIS DO RAILWAY
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
-const JWT_SECRET = 'chave-super-secreta-mude-isso'; // depois coloca no Railway
+const JWT_SECRET = 'chave-super-secreta-mude-isso';
 
 // MIDDLEWARE PRA PROTEGER ROTAS
 function autenticar(req, res, next) {
-  const token = req.headers['authorization'];
-  if (!token) return res.status(401).json({ message: 'Token não enviado' });
-  
-  jwt.verify(token, JWT_SECRET, (err, usuario) => {
-    if (err) return res.status(403).json({ message: 'Token inválido' });
-    req.usuario = usuario;
-    next();
-  });
+    const token = req.headers['authorization'];
+    if (!token) return res.status(401).json({ message: 'Token não fornecido' });
+
+    jwt.verify(token, JWT_SECRET, (err, usuario) => {
+        if (err) return res.status(403).json({ message: 'Token inválido' });
+        req.usuario = usuario;
+        next();
+    });
 }
 
-// 1. CADASTRO COM SENHA CRIPTOGRAFADA
+// 1. ROTA DE CADASTRO
 app.post('/cadastrar', async (req, res) => {
-  const { nome, email, senha } = req.body;
-  const senhaHash = await bcrypt.hash(senha, 10); // embaralha a senha
+    const { nome, email, senha } = req.body;
+    const senhaHash = await bcrypt.hash(senha, 10);
 
-  const { data, error } = await supabase
-    .from('usuarios')
-    .insert([{ nome, email, senha: senhaHash }]); // salva o hash
-    
-  if (error) return res.status(400).json({ success: false, error: error.message });
-  res.json({ success: true, message: 'Usuário cadastrado com sucesso' });
+    const { data, error } = await supabase
+        .from('usuarios')
+        .insert([{ nome, email, senha: senhaHash }]);
+
+    if (error) return res.status(400).json({ error: error.message });
+    res.status(201).json({ message: 'Usuário cadastrado com sucesso!' });
 });
 
-// 2. LOGIN RETORNA TOKEN
+// 2. ROTA DE LOGIN
 app.post('/login', async (req, res) => {
-  const { email, senha } = req.body;
-  const { data: usuario } = await supabase.from('usuarios').select('*').eq('email', email).single();
+    const { email, senha } = req.body;
 
-  if (!usuario) return res.status(401).json({ success: false, message: 'Email ou senha inválidos' });
+    const { data: usuario, error } = await supabase
+        .from('usuarios')
+        .select('*')
+        .eq('email', email)
+        .single();
 
-  const senhaOk = await bcrypt.compare(senha, usuario.senha); // compara hash
-  if (!senhaOk) return res.status(401).json({ success: false, message: 'Email ou senha inválidos' });
+    if (error || !usuario) return res.status(401).json({ message: 'Usuário não encontrado' });
 
-  const token = jwt.sign({ id: usuario.id, email: usuario.email }, JWT_SECRET, { expiresIn: '7d' });
-  
-  res.json({ success: true, message: 'Login realizado', token });
+    const senhaValida = await bcrypt.compare(senha, usuario.senha);
+    if (!senhaValida) return res.status(401).json({ message: 'Senha incorreta' });
+
+    const token = jwt.sign({ id: usuario.id }, JWT_SECRET, { expiresIn: '1h' });
+    res.json({ token });
 });
 
-// 3. LISTAR USUARIOS AGORA É PROTEGIDA
-app.get('/usuarios', autenticar, async (req, res) => {
-  const { data, error } = await supabase.from('usuarios').select('id, nome, email');
-  if (error) return res.status(400).json({ success: false, error: error.message });
-  res.json({ success: true, usuarios: data });
+// 3. ROTA TESTE PROTEGIDA
+app.get('/perfil', autenticar, (req, res) => {
+    res.json({ message: 'Você está logado!', usuario: req.usuario });
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('API rodando na porta ' + PORT));
+app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
