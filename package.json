@@ -1,5 +1,14 @@
-PORT=3000
-API_URL=https://api-7zzbet.onrender.com
-EZZEPAY_CLIENT_ID=COLOCAR_DEPOIS
-EZZEPAY_CLIENT_SECRET=COLOCAR_DEPOIS
-EZZEPAY_WEBHOOK_SECRET=COLOCAR_DEPOIS
+{
+  "name": "api-7zzbet",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
