@@ -15,12 +15,17 @@ app.get('/health', (req, res) => {
 
 app.post('/cadastrar', async (req, res) => {
   const { nome, email, senha } = req.body;
+  console.log("Dados recebidos:", req.body); // pra ver nos logs
+
   const { data, error } = await supabase
     .from('usuarios')
     .insert([{ nome, email, senha }]);
+
   if (error) {
+    console.log("Erro Supabase:", error); // pra ver nos logs
     return res.status(400).json({ success: false, error: error.message });
   }
+
   res.json({ success: true, message: 'Usuário cadastrado com sucesso' });
 });
 
