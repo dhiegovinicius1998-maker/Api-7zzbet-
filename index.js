@@ -22,11 +22,16 @@ app.post('/cadastrar', async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const nome = email.split('@')[0]; // Pega o nome do email. Ex: dhiego.vinicius
 
     const { data, error } = await supabase
-  .from('users')
-  .insert([{ email, senha: hashedPassword }]) // <-- aqui usa "senha" igual sua tabela
-  .select();
+ .from('users')
+ .insert([{ 
+    email, 
+    senha: hashedPassword,
+    nome: nome // <-- ADICIONEI ISSO AQUI
+  }])
+ .select();
 
     if (error) {
       return res.status(400).json({ error: error.message });
